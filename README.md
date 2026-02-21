@@ -1,4 +1,19 @@
-# Cardiovascular Risk Prediction – End‑to‑End Machine Learning Pipeline
+<div style="
+    width: 100%;
+    padding: 30px 20px;
+    background: linear-gradient(90deg, #004e92, #000428);
+    border-radius: 8px;
+    text-align: center;
+    color: white;
+    font-family: Arial, sans-serif;
+">
+    <h1 style="margin: 0; font-size: 32px; font-weight: 700;">
+        Cardiovascular Risk Prediction
+    </h1>
+    <p style="margin: 10px 0 0; font-size: 18px; font-weight: 300;">
+        End‑to‑End Machine Learning Pipeline
+    </p>
+</div>
 
 This repository contains a full, production‑grade machine learning system for predicting **10‑year cardiovascular disease (CVD) risk** using structured clinical data.  
 The project integrates **clinical data cleaning**, **feature engineering**, **robust preprocessing**, **multiple model families**, **probability calibration**, **threshold optimization**, **interpretability**, and **deployment utilities**.
