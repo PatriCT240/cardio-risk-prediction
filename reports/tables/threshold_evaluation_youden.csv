@@ -1,0 +1,2 @@
+threshold,TP,FP,FN,TN,sensitivity,specificity,PPV,NPV,F1
+0.4951,4699,1696,2105,5253,0.6906,0.7559,0.7348,0.7139,0.712

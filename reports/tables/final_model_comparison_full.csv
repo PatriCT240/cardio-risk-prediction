@@ -1,0 +1,4 @@
+model,roc_auc,pr_auc,brier,ece
+Logistic Regression,0.7861,0.7679,0.1884,0.021
+Random Forest,0.7894,0.7734,0.1862,0.0144
+HGB + robustness + calibrated,0.789,0.7726,0.1865,0.0097
