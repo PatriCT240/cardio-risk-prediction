@@ -1,20 +1,19 @@
-"""
-Data preparation module for cardiovascular risk prediction.
-
-This module loads the raw dataset, applies strict and standard clinical
-cleaning rules, performs feature engineering, injects missingness and
-Gaussian noise for robustness experiments, applies winsorization, and
-produces train/test splits along with traceability metadata.
-"""
+# scripts/data_prep.py
+# -----------------------------
+# Data preparation utilities for cardiovascular risk prediction.
+# Includes loading, strict clinical cleaning, feature engineering,
+# winsorization, robustness perturbations and traceability metadata.
 
 import pandas as pd
 import numpy as np
 from typing import Tuple, Dict
 
-
+# ---------------------------------------
+# 1. Load raw dataset
+# ---------------------------------------
 def load_raw_data(path: str) -> pd.DataFrame:
     """
-    Load the raw cardiovascular dataset.
+    Load the raw cardiovascular dataset from CSV.
 
     Parameters
     ----------
@@ -29,10 +28,12 @@ def load_raw_data(path: str) -> pd.DataFrame:
     df = pd.read_csv(path, sep=";")
     return df.copy()
 
-
+# ---------------------------------------
+# 2. Strict clinical cleaning
+# ---------------------------------------
 def apply_strict_clinical_cleaning(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Apply strict clinical rules to remove physiologically impossible records.
+    Remove physiologically impossible records based on clinical rules.
 
     Parameters
     ----------
@@ -49,11 +50,13 @@ def apply_strict_clinical_cleaning(df: pd.DataFrame) -> pd.DataFrame:
     df = df[df["flag_ap_incoherent"] == 0].copy()
     return df
 
-
+# ---------------------------------------
+# 3. Feature engineering
+# ---------------------------------------
 def feature_engineering(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Create engineered features including BMI, age in years, age bands,
-    hypertension flags, lifestyle risk flags, and clinical risk flags.
+    Create engineered features: BMI, age in years, age bands,
+    hypertension flags, lifestyle risk flags and clinical risk flags.
 
     Parameters
     ----------
@@ -66,17 +69,28 @@ def feature_engineering(df: pd.DataFrame) -> pd.DataFrame:
         Dataset with engineered features.
     """
     df = df.copy()
+
+    # Age and BMI
     df["age_years"] = (df["age"] / 365.25).round(1)
     df["BMI"] = (df["weight"] / ((df["height"] / 100) ** 2)).round(2)
 
+    # Age bands
     age_bins = [0, 40, 50, 60, 70, np.inf]
     age_labels = ["[0,40)", "[40,50)", "[50,60)", "[60,70)", "[70,+)"]
     df["age_band"] = pd.cut(df["age_years"], bins=age_bins, labels=age_labels, right=False)
 
-    df["ap_hi_cat"] = df["ap_hi"].apply(lambda x: "normal" if x < 120 else ("elevated" if x < 130 else "HTA"))
-    df["ap_lo_cat"] = df["ap_lo"].apply(lambda x: "normal" if x < 80 else "HTA")
-    df["hypertension_flag"] = ((df["ap_hi_cat"] == "HTA") | (df["ap_lo_cat"] == "HTA")).astype(int)
+    # Blood pressure categories
+    df["ap_hi_cat"] = df["ap_hi"].apply(
+        lambda x: "normal" if x < 120 else ("elevated" if x < 130 else "HTA")
+    )
+    df["ap_lo_cat"] = df["ap_lo"].apply(
+        lambda x: "normal" if x < 80 else "HTA"
+    )
+    df["hypertension_flag"] = (
+        (df["ap_hi_cat"] == "HTA") | (df["ap_lo_cat"] == "HTA")
+    ).astype(int)
 
+    # Clinical risk
     df["clinical_risk_flag"] = (
         (df["ap_hi"] >= 140) |
         (df["ap_lo"] >= 90) |
@@ -84,6 +98,7 @@ def feature_engineering(df: pd.DataFrame) -> pd.DataFrame:
         (df["age_years"] >= 60)
     ).astype(int)
 
+    # Lifestyle risk
     df["lifestyle_risk_flag"] = (
         (df["smoke"] == 1) |
         (df["alco"] == 1) |
@@ -92,7 +107,9 @@ def feature_engineering(df: pd.DataFrame) -> pd.DataFrame:
 
     return df
 
-
+# ---------------------------------------
+# 4. Winsorization
+# ---------------------------------------
 def apply_standard_winsorization(df: pd.DataFrame) -> pd.DataFrame:
     """
     Apply clinical winsorization to physiological variables and create
@@ -109,6 +126,7 @@ def apply_standard_winsorization(df: pd.DataFrame) -> pd.DataFrame:
         Winsorized dataset with was_capped flags.
     """
     df = df.copy()
+
     limits = {
         "height": (140, 200),
         "weight": (40, 180),
@@ -124,8 +142,12 @@ def apply_standard_winsorization(df: pd.DataFrame) -> pd.DataFrame:
 
     return df
 
-
-def inject_missingness_and_noise(df: pd.DataFrame, seed: int = 42) -> Tuple[pd.DataFrame, Dict]:
+# ---------------------------------------
+# 5. Missingness + Gaussian noise injection
+# ---------------------------------------
+def inject_missingness_and_noise(
+    df: pd.DataFrame, seed: int = 42
+) -> Tuple[pd.DataFrame, Dict]:
     """
     Inject missing values and Gaussian noise into selected variables for
     robustness evaluation.
@@ -146,31 +168,37 @@ def inject_missingness_and_noise(df: pd.DataFrame, seed: int = 42) -> Tuple[pd.D
     df_aug = df.copy()
     masks = {}
 
+    # Missingness
     missing_cols = [c for c in ["ap_hi", "ap_lo", "BMI", "age_years"] if c in df_aug.columns]
     for col in missing_cols:
         mask = rng.random(len(df_aug)) < 0.10
         df_aug.loc[mask, col] = np.nan
         masks[col] = mask
 
+    # Gaussian noise
     noise_cols = [c for c in ["ap_hi", "ap_lo", "weight"] if c in df_aug.columns]
     for col in noise_cols:
         sigma = 0.05 * float(np.nanstd(df_aug[col].values))
         df_aug[col] = df_aug[col] + rng.normal(0, sigma, size=len(df_aug))
 
+    # Re-clip after noise
     limits = {
         "ap_hi": (90, 200),
         "ap_lo": (60, 120),
         "BMI": (15, 60),
         "weight": (40, 180)
     }
-
     for col, (low, high) in limits.items():
         if col in df_aug.columns:
             df_aug[col] = df_aug[col].clip(lower=low, upper=high)
 
+    # Traceability
     trace = {
         "missingness_masks": {col: int(mask.sum()) for col, mask in masks.items()},
-        "noise_sigma": {col: round(0.05 * df_aug[col].std(skipna=True), 3) for col in noise_cols}
+        "noise_sigma": {
+            col: round(0.05 * df_aug[col].std(skipna=True), 3)
+            for col in noise_cols
+        }
     }
 
     return df_aug, trace

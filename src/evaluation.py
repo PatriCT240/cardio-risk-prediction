@@ -1,11 +1,8 @@
-"""
-Evaluation module for cardiovascular risk prediction.
-
-This module implements model evaluation utilities including ROC-AUC,
-PR-AUC, bootstrapping confidence intervals, reliability curves,
-threshold selection (Youden, cost-based, top-k), confusion matrix
-metrics, and subgroup fairness evaluation.
-"""
+# scripts/evaluation.py
+# -----------------------------
+# Evaluation utilities for cardiovascular risk prediction.
+# Includes ROC/PR metrics, bootstrap confidence intervals,
+# reliability curves, threshold selection and subgroup fairness.
 
 from typing import Dict, Tuple, List
 import numpy as np
@@ -23,7 +20,9 @@ from sklearn.metrics import (
 )
 from sklearn.calibration import calibration_curve
 
-
+# ---------------------------------------
+# 1. Basic metrics
+# ---------------------------------------
 def compute_basic_metrics(
     y_true: np.ndarray,
     y_prob: np.ndarray
@@ -48,7 +47,9 @@ def compute_basic_metrics(
         "pr_auc": average_precision_score(y_true, y_prob)
     }
 
-
+# ---------------------------------------
+# 2. Bootstrap confidence intervals
+# ---------------------------------------
 def compute_bootstrap_intervals(
     y_true: np.ndarray,
     y_prob: np.ndarray,
@@ -76,9 +77,9 @@ def compute_bootstrap_intervals(
     """
     rng = np.random.default_rng(seed)
 
-    y_true = np.asarray(y_true) 
+    y_true = np.asarray(y_true)
     y_prob = np.asarray(y_prob)
-    
+
     roc_scores = []
     pr_scores = []
 
@@ -91,13 +92,20 @@ def compute_bootstrap_intervals(
 
     return {
         "roc_auc_mean": float(np.mean(roc_scores)),
-        "roc_auc_ci": (float(np.percentile(roc_scores, 2.5)),
-                       float(np.percentile(roc_scores, 97.5))),
+        "roc_auc_ci": (
+            float(np.percentile(roc_scores, 2.5)),
+            float(np.percentile(roc_scores, 97.5))
+        ),
         "pr_auc_mean": float(np.mean(pr_scores)),
-        "pr_auc_ci": (float(np.percentile(pr_scores, 2.5)),
-                      float(np.percentile(pr_scores, 97.5)))
+        "pr_auc_ci": (
+            float(np.percentile(pr_scores, 2.5)),
+            float(np.percentile(pr_scores, 97.5))
+        )
     }
 
+# ---------------------------------------
+# 3. Reliability and Brier score
+# ---------------------------------------
 def compute_reliability(
     y_true: np.ndarray,
     y_prob: np.ndarray,
@@ -129,7 +137,9 @@ def compute_reliability(
         "brier_score": brier
     }
 
-
+# ---------------------------------------
+# 4. Threshold evaluation
+# ---------------------------------------
 def evaluate_threshold(
     y_true: np.ndarray,
     y_prob: np.ndarray,
@@ -174,7 +184,9 @@ def evaluate_threshold(
         "F1": f1
     }
 
-
+# ---------------------------------------
+# 5. Threshold selection (Youden, cost, top-k)
+# ---------------------------------------
 def select_thresholds(
     y_true: np.ndarray,
     y_prob: np.ndarray,
@@ -228,7 +240,9 @@ def select_thresholds(
         "top_k": topk_thr
     }
 
-
+# ---------------------------------------
+# 6. Subgroup fairness evaluation
+# ---------------------------------------
 def evaluate_subgroups(
     df: pd.DataFrame,
     y_true: np.ndarray,

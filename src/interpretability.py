@@ -1,9 +1,8 @@
-"""
-Interpretability module for cardiovascular risk prediction.
-
-This module implements permutation importance, partial dependence
-functions, univariate ALE, and bivariate ALE interaction effects.
-"""
+# scripts/interpretability.py
+# -----------------------------
+# Interpretability utilities for cardiovascular risk prediction.
+# Includes permutation importance, partial dependence functions,
+# SHAP values and SHAP interaction effects.
 
 from typing import List, Tuple, Dict
 import numpy as np
@@ -11,6 +10,9 @@ import pandas as pd
 import shap
 from sklearn.inspection import permutation_importance
 
+# ---------------------------------------
+# 1. Permutation importance
+# ---------------------------------------
 def compute_permutation_importance(
     pipeline,
     X: pd.DataFrame,
@@ -61,7 +63,9 @@ def compute_permutation_importance(
 
     return df_pi
 
-
+# ---------------------------------------
+# 2. Partial Dependence (PDP)
+# ---------------------------------------
 def compute_pdp(
     pipeline,
     X: pd.DataFrame,
@@ -98,16 +102,30 @@ def compute_pdp(
 
     return grid, np.array(means)
 
+# ---------------------------------------
+# 3. SHAP values
+# ---------------------------------------
 def compute_shap_values(pipeline, X):
     """
     Compute SHAP values using the underlying tree model.
     CalibratedClassifierCV is not supported by SHAP, so we use the base estimator.
+
+    Parameters
+    ----------
+    pipeline : Pipeline
+        Trained model pipeline.
+    X : pd.DataFrame
+        Input features.
+
+    Returns
+    -------
+    Tuple
+        SHAP values and feature names.
     """
     preprocessor = pipeline.named_steps["prep"]
     calibrated = pipeline.named_steps["clf"]
 
     model = calibrated.estimator
-
     X_trans = preprocessor.transform(X)
 
     explainer = shap.TreeExplainer(model)
@@ -117,15 +135,29 @@ def compute_shap_values(pipeline, X):
 
     return shap_values, feature_names
 
+# ---------------------------------------
+# 4. SHAP interaction values
+# ---------------------------------------
 def compute_shap_interactions(pipeline, X):
     """
     Compute SHAP interaction values using the underlying tree model.
+
+    Parameters
+    ----------
+    pipeline : Pipeline
+        Trained model pipeline.
+    X : pd.DataFrame
+        Input features.
+
+    Returns
+    -------
+    Tuple
+        SHAP interaction values and feature names.
     """
     preprocessor = pipeline.named_steps["prep"]
     calibrated = pipeline.named_steps["clf"]
 
     model = calibrated.estimator
-
     X_trans = preprocessor.transform(X)
 
     explainer = shap.TreeExplainer(model)

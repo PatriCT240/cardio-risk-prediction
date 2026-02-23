@@ -1,22 +1,27 @@
-"""
-Preprocessing module for cardiovascular risk prediction.
+# scripts/preprocessing.py
+# -----------------------------
+# Preprocessing utilities for cardiovascular risk prediction.
+# Includes train/test split, feature grouping, and multiple
+# preprocessing pipelines (standard, median-based, KNN-based).
 
-This module builds preprocessing pipelines for numerical, ordinal,
-binary, and engineered categorical features. It supports both the
-standard preprocessing pipeline and the advanced pipelines using
-median imputation or KNN imputation.
-"""
 import pandas as pd
-from typing import List
+from typing import List, Dict
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import StandardScaler, OneHotEncoder, OrdinalEncoder
 from sklearn.impute import SimpleImputer, KNNImputer
 
-def build_train_test_split(df, random_state):
+# ---------------------------------------
+# 1. Train/test split
+# ---------------------------------------
+def build_train_test_split(df: pd.DataFrame, random_state: int):
+    """
+    Split dataset into train and test sets (stratified).
+    """
     X = df.drop("cardio", axis=1)
     y = df["cardio"]
+
     return train_test_split(
         X,
         y,
@@ -25,19 +30,18 @@ def build_train_test_split(df, random_state):
         random_state=random_state
     )
 
-
-def get_feature_groups() -> dict:
+# ---------------------------------------
+# 2. Feature groups
+# ---------------------------------------
+def get_feature_groups() -> Dict[str, List[str]]:
     """
     Return the feature groups used across preprocessing pipelines.
-
-    Returns
-    -------
-    dict
-        Dictionary containing lists of numerical, ordinal, binary,
-        and engineered flag features.
     """
     return {
-        "numerical": ["age_years", "height", "weight", "BMI", "ap_hi", "ap_lo"],
+        "numerical": [
+            "age_years", "height", "weight", "BMI",
+            "ap_hi", "ap_lo"
+        ],
         "ordinal": ["cholesterol", "gluc"],
         "binary": ["gender", "smoke", "alco", "active"],
         "flags": [
@@ -53,17 +57,15 @@ def get_feature_groups() -> dict:
         ]
     }
 
-
+# ---------------------------------------
+# 3. Standard preprocessing pipeline
+# ---------------------------------------
 def build_standard_preprocessor() -> ColumnTransformer:
     """
-    Build the standard preprocessing pipeline using median imputation
-    for numerical features, ordinal encoding for ordinal features,
-    and one-hot encoding for binary and flag features.
-
-    Returns
-    -------
-    ColumnTransformer
-        Preprocessing transformer for the standard pipeline.
+    Standard preprocessing:
+    - Median imputation + scaling for numerical features
+    - Ordinal encoding for cholesterol/glucose
+    - One-hot encoding for binary + flag features
     """
     groups = get_feature_groups()
 
@@ -90,17 +92,14 @@ def build_standard_preprocessor() -> ColumnTransformer:
 
     return preprocessor
 
-
+# ---------------------------------------
+# 4. Advanced preprocessing (median imputation)
+# ---------------------------------------
 def build_advanced_preprocessor_median() -> ColumnTransformer:
     """
-    Build the advanced preprocessing pipeline using median imputation
-    for numerical features and one-hot encoding for all categorical
-    and flag features.
-
-    Returns
-    -------
-    ColumnTransformer
-        Preprocessing transformer using median imputation.
+    Advanced preprocessing using:
+    - Median imputation + sparse scaling for numerical features
+    - One-hot encoding for all categorical + flag features
     """
     groups = get_feature_groups()
 
@@ -121,17 +120,14 @@ def build_advanced_preprocessor_median() -> ColumnTransformer:
 
     return preprocessor
 
-
+# ---------------------------------------
+# 5. Advanced preprocessing (KNN imputation)
+# ---------------------------------------
 def build_advanced_preprocessor_knn() -> ColumnTransformer:
     """
-    Build the advanced preprocessing pipeline using KNN imputation
-    for numerical features and one-hot encoding for all categorical
-    and flag features.
-
-    Returns
-    -------
-    ColumnTransformer
-        Preprocessing transformer using KNN imputation.
+    Advanced preprocessing using:
+    - KNN imputation + sparse scaling for numerical features
+    - One-hot encoding for all categorical + flag features
     """
     groups = get_feature_groups()
 

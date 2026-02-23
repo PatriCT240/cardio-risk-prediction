@@ -1,23 +1,27 @@
-"""
-Model training module for cardiovascular risk prediction.
-
-This module implements baseline and advanced models, including Logistic
-Regression, Random Forest, and HistGradientBoosting. It supports
-cross-validation, hyperparameter tuning, model comparison, probability
-calibration, and final pipeline assembly.
-"""
+# scripts/modeling.py
+# -----------------------------
+# Model training utilities for cardiovascular risk prediction.
+# Includes Logistic Regression, Random Forest, HistGradientBoosting,
+# cross-validation, model comparison, calibration and test evaluation.
 
 import pandas as pd
 import numpy as np
-
 from typing import Dict, Tuple
-from sklearn.calibration import CalibratedClassifierCV
-from sklearn.ensemble import HistGradientBoostingClassifier, RandomForestClassifier
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import average_precision_score, roc_auc_score, brier_score_loss
-from sklearn.model_selection import GridSearchCV, StratifiedKFold, cross_val_score
-from sklearn.pipeline import Pipeline
 
+from sklearn.pipeline import Pipeline
+from sklearn.model_selection import GridSearchCV, StratifiedKFold, cross_val_score
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier, HistGradientBoostingClassifier
+from sklearn.calibration import CalibratedClassifierCV
+from sklearn.metrics import (
+    roc_auc_score,
+    average_precision_score,
+    brier_score_loss
+)
+
+# ---------------------------------------
+# 1. Logistic Regression
+# ---------------------------------------
 def train_logistic_regression(
     preprocessor,
     X_train: pd.DataFrame,
@@ -26,22 +30,6 @@ def train_logistic_regression(
 ) -> Tuple[Pipeline, Dict]:
     """
     Train a Logistic Regression model with light hyperparameter tuning.
-
-    Parameters
-    ----------
-    preprocessor : ColumnTransformer
-        Preprocessing pipeline.
-    X_train : pd.DataFrame
-        Training features.
-    y_train : pd.Series
-        Training labels.
-    random_state : int
-        Random state.
-
-    Returns
-    -------
-    Tuple[Pipeline, Dict]
-        Best pipeline and tuning results.
     """
     pipe = Pipeline([
         ("prep", preprocessor),
@@ -56,6 +44,9 @@ def train_logistic_regression(
 
     return grid.best_estimator_, grid.best_params_
 
+# ---------------------------------------
+# 2. Random Forest
+# ---------------------------------------
 def train_random_forest(
     preprocessor,
     X_train: pd.DataFrame,
@@ -64,22 +55,6 @@ def train_random_forest(
 ) -> Tuple[Pipeline, Dict]:
     """
     Train a Random Forest classifier with fixed parsimonious hyperparameters.
-
-    Parameters
-    ----------
-    preprocessor : ColumnTransformer
-        Preprocessing pipeline.
-    X_train : pd.DataFrame
-        Training features.
-    y_train : pd.Series
-        Training labels.
-    random_state : int
-        Random state.
-
-    Returns
-    -------
-    Tuple[Pipeline, Dict]
-        Pipeline and model configuration.
     """
     model = RandomForestClassifier(
         n_estimators=400,
@@ -101,6 +76,9 @@ def train_random_forest(
         "min_samples_leaf": 5,
     }
 
+# ---------------------------------------
+# 3. HistGradientBoosting
+# ---------------------------------------
 def train_histgradientboosting(
     preprocessor,
     X_train: pd.DataFrame,
@@ -109,22 +87,6 @@ def train_histgradientboosting(
 ) -> Tuple[Pipeline, Dict]:
     """
     Train a HistGradientBoosting model with early stopping and regularization.
-
-    Parameters
-    ----------
-    preprocessor : ColumnTransformer
-        Preprocessing pipeline.
-    X_train : pd.DataFrame
-        Training features.
-    y_train : pd.Series
-        Training labels.
-    random_state : int
-        Random state.
-
-    Returns
-    -------
-    Tuple[Pipeline, Dict]
-        Pipeline and model configuration.
     """
     model = HistGradientBoostingClassifier(
         max_depth=3,
@@ -151,6 +113,9 @@ def train_histgradientboosting(
         "min_samples_leaf": 20,
     }
 
+# ---------------------------------------
+# 4. Cross-validation
+# ---------------------------------------
 def cross_validate_model(
     pipeline: Pipeline,
     X_train: pd.DataFrame,
@@ -160,24 +125,6 @@ def cross_validate_model(
 ) -> Dict:
     """
     Perform cross-validation for ROC-AUC and PR-AUC.
-
-    Parameters
-    ----------
-    pipeline : Pipeline
-        Model pipeline (UNFITTED).
-    X_train : pd.DataFrame
-        Training features.
-    y_train : pd.Series
-        Training labels.
-    random_state : int
-        Random state.
-    n_splits : int
-        Number of CV folds.
-
-    Returns
-    -------
-    Dict
-        Cross-validation metrics.
     """
     cv = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=random_state)
 
@@ -191,6 +138,9 @@ def cross_validate_model(
         "pr_auc_std": pr_scores.std(),
     }
 
+# ---------------------------------------
+# 5. Model comparison
+# ---------------------------------------
 def compare_models(
     pipelines: Dict[str, Pipeline],
     X_train: pd.DataFrame,
@@ -200,24 +150,6 @@ def compare_models(
 ) -> pd.DataFrame:
     """
     Compare multiple models using cross-validation.
-
-    Parameters
-    ----------
-    pipelines : Dict[str, Pipeline]
-        Dictionary of UNFITTED model pipelines.
-    X_train : pd.DataFrame
-        Training features.
-    y_train : pd.Series
-        Training labels.
-    random_state : int
-        Random state.
-    n_splits : int
-        Number of CV folds.
-
-    Returns
-    -------
-    pd.DataFrame
-        Comparison table sorted by ROC-AUC.
     """
     results = []
 
@@ -241,6 +173,9 @@ def compare_models(
 
     return df_results
 
+# ---------------------------------------
+# 6. Calibration
+# ---------------------------------------
 def calibrate_model(
     pipeline: Pipeline,
     X_train: pd.DataFrame,
@@ -249,22 +184,6 @@ def calibrate_model(
 ) -> Pipeline:
     """
     Apply probability calibration to a trained model.
-
-    Parameters
-    ----------
-    pipeline : Pipeline
-        Trained model pipeline.
-    X_train : pd.DataFrame
-        Training features.
-    y_train : pd.Series
-        Training labels.
-    method : str
-        Calibration method ("isotonic" or "sigmoid").
-
-    Returns
-    -------
-    Pipeline
-        Calibrated model pipeline.
     """
     model = pipeline.named_steps["clf"]
     preprocessor = pipeline.named_steps["prep"]
@@ -280,6 +199,9 @@ def calibrate_model(
 
     return pipe
 
+# ---------------------------------------
+# 7. Test evaluation
+# ---------------------------------------
 def evaluate_on_test(
     pipeline: Pipeline,
     X_test: pd.DataFrame,
@@ -287,20 +209,6 @@ def evaluate_on_test(
 ) -> Dict:
     """
     Evaluate a trained model on the test set.
-
-    Parameters
-    ----------
-    pipeline : Pipeline
-        Trained model pipeline.
-    X_test : pd.DataFrame
-        Test features.
-    y_test : pd.Series
-        Test labels.
-
-    Returns
-    -------
-    Dict
-        Test ROC-AUC and PR-AUC.
     """
     y_prob = pipeline.predict_proba(X_test)[:, 1]
 
@@ -309,9 +217,15 @@ def evaluate_on_test(
         "pr_auc": average_precision_score(y_test, y_prob),
     }
 
+# ---------------------------------------
+# 8. Brier score
+# ---------------------------------------
 def compute_brier_score(y_true, y_prob):
     return brier_score_loss(y_true, y_prob)
 
+# ---------------------------------------
+# 9. Expected Calibration Error (ECE)
+# ---------------------------------------
 def compute_ece(y_true, y_prob, n_bins=10):
     bins = np.linspace(0, 1, n_bins + 1)
     bin_ids = np.digitize(y_prob, bins) - 1
@@ -327,6 +241,9 @@ def compute_ece(y_true, y_prob, n_bins=10):
 
     return ece
 
+# ---------------------------------------
+# 10. Reliability curve
+# ---------------------------------------
 def compute_reliability_curve(y_true, y_prob, n_bins=10):
     bins = np.linspace(0, 1, n_bins + 1)
     bin_ids = np.digitize(y_prob, bins) - 1

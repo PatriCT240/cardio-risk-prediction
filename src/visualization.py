@@ -1,11 +1,9 @@
-"""
-Visualization utilities for cardiovascular risk prediction.
-
-This module centralizes all figure generation for evaluation,
-calibration, interpretability, and model diagnostics. It does not
-perform any computation; it only receives precomputed data and
-returns matplotlib figures.
-"""
+# scripts/visualization.py
+# -----------------------------
+# Visualization utilities for cardiovascular risk prediction.
+# Centralizes all figure generation for EDA, evaluation, calibration,
+# interpretability and model diagnostics. This module performs no
+# computation; it only receives precomputed data and returns figures.
 
 import pandas as pd
 import seaborn as sns
@@ -14,17 +12,21 @@ import numpy as np
 import shap
 from sklearn.metrics import confusion_matrix
 
-# Clinical visualization limits applied only to improve readability of blood pressure histograms.
-# These limits do not modify the dataset and are not part of data cleaning or preprocessing.
+# ---------------------------------------
+# 1. Histograms (with clinical visualization limits)
+# ---------------------------------------
 def plot_histograms(df: pd.DataFrame, cols: list):
+    """
+    Plot histograms for selected numerical variables.
+    Clinical visualization limits are applied only for readability.
+    """
     fig, axes = plt.subplots(len(cols), 1, figsize=(8, 3.5 * len(cols)))
-
     if len(cols) == 1:
         axes = [axes]
 
     for ax, col in zip(axes, cols):
 
-        # Clinical visualization limits (not cleaning)
+        # Visualization-only clipping (not preprocessing)
         if col == "ap_hi":
             data = df[col].clip(lower=70, upper=250)
         elif col == "ap_lo":
@@ -39,42 +41,44 @@ def plot_histograms(df: pd.DataFrame, cols: list):
     fig.tight_layout()
     return fig
 
+# ---------------------------------------
+# 2. Categorical bar plots
+# ---------------------------------------
 def plot_categorical_bars(df: pd.DataFrame, cols: list, labels: dict):
+    """
+    Plot bar charts for categorical variables using human-readable labels.
+    """
     fig, axes = plt.subplots(len(cols), 1, figsize=(8, 3.5 * len(cols)))
-
     if len(cols) == 1:
         axes = [axes]
 
     for ax, col in zip(axes, cols):
-
-        # Category mapping
         mapping = labels.get(col)
         categories = list(mapping.keys())
 
-        # Count values and include missing categories
         counts = df[col].value_counts().reindex(categories, fill_value=0)
-
-        # One color per category
         palette = sns.color_palette("pastel", len(categories))
 
-        # Draw bars
         bars = ax.bar(categories, counts.values, color=palette)
 
-        # Titles and labels
         ax.set_title(f"Distribution of {col}")
         ax.set_xlabel(col)
         ax.set_ylabel("Count")
 
-        # Legend: one label per bar
         legend_labels = [mapping[c] for c in categories]
         ax.legend(bars, legend_labels, title=col)
 
     fig.tight_layout()
     return fig
 
+# ---------------------------------------
+# 3. Numeric vs target (boxplots)
+# ---------------------------------------
 def plot_numeric_vs_target(df: pd.DataFrame, cols: list, target: str = "cardio"):
+    """
+    Boxplots of numerical variables stratified by the target.
+    """
     fig, axes = plt.subplots(len(cols), 1, figsize=(8, 3.5 * len(cols)))
-
     if len(cols) == 1:
         axes = [axes]
 
@@ -87,22 +91,36 @@ def plot_numeric_vs_target(df: pd.DataFrame, cols: list, target: str = "cardio")
     fig.tight_layout()
     return fig
 
+# ---------------------------------------
+# 4. Correlation matrix
+# ---------------------------------------
 def plot_correlation_matrix(df: pd.DataFrame):
+    """
+    Plot correlation matrix for numerical variables.
+    """
     corr = df.corr(numeric_only=True)
     fig, ax = plt.subplots(figsize=(9, 7))
+
     sns.heatmap(
         corr,
         cmap="coolwarm",
         center=0,
-        annot=True,      
-        fmt=".2f",       
+        annot=True,
+        fmt=".2f",
         ax=ax
     )
+
     ax.set_title("Correlation matrix")
     fig.tight_layout()
     return fig, corr
 
+# ---------------------------------------
+# 5. Categorical vs target (heatmap)
+# ---------------------------------------
 def plot_categorical_vs_target(df: pd.DataFrame, cols: list, target: str = "cardio"):
+    """
+    Heatmap of % cardio=1 per category for each categorical variable.
+    """
     tabla = pd.DataFrame()
 
     for col in cols:
@@ -117,27 +135,15 @@ def plot_categorical_vs_target(df: pd.DataFrame, cols: list, target: str = "card
     sns.heatmap(tabla_pivot, annot=True, fmt=".1f", cmap="Blues", ax=ax)
     ax.set_title("Percentage of cardio=1 by category")
     fig.tight_layout()
+
     return fig, tabla_pivot
 
+# ---------------------------------------
+# 6. ROC curve
+# ---------------------------------------
 def plot_roc_curve(fpr, tpr, auc_value, model_name):
     """
-    Generate ROC curve figure with model name and AUC value.
-
-    Parameters
-    ----------
-    fpr : array-like
-        False positive rates.
-    tpr : array-like
-        True positive rates.
-    auc_value : float
-        ROC-AUC score to display.
-    model_name : str
-        Name of the model.
-
-    Returns
-    -------
-    matplotlib.figure.Figure
-        ROC curve figure.
+    Generate ROC curve figure with AUC annotation.
     """
     fig, ax = plt.subplots(figsize=(6, 4))
     ax.plot(fpr, tpr, linewidth=2)
@@ -158,25 +164,12 @@ def plot_roc_curve(fpr, tpr, auc_value, model_name):
     fig.tight_layout()
     return fig
 
+# ---------------------------------------
+# 7. Precision–Recall curve
+# ---------------------------------------
 def plot_pr_curve(precision, recall, pr_value, model_name):
     """
-    Generate Precision–Recall curve with model name and PR-AUC value.
-
-    Parameters
-    ----------
-    precision : array-like
-        Precision values.
-    recall : array-like
-        Recall values.
-    pr_value : float
-        PR-AUC score to display.
-    model_name : str
-        Name of the model.
-
-    Returns
-    -------
-    matplotlib.figure.Figure
-        PR curve figure.
+    Generate Precision–Recall curve with PR-AUC annotation.
     """
     fig, ax = plt.subplots(figsize=(6, 4))
     ax.plot(recall, precision, linewidth=2)
@@ -196,9 +189,16 @@ def plot_pr_curve(precision, recall, pr_value, model_name):
     fig.tight_layout()
     return fig
 
+# ---------------------------------------
+# 8. Calibration summary (reliability + ECE)
+# ---------------------------------------
 def plot_calibration_summary(models_data, bins):
+    """
+    Plot reliability curves and ECE per bin for multiple models.
+    """
     fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 
+    # Reliability curves
     ax1 = axes[0]
     for model_name, conf, acc in models_data:
         ax1.plot(conf, acc, marker="o", label=model_name)
@@ -208,6 +208,7 @@ def plot_calibration_summary(models_data, bins):
     ax1.set_title("Reliability Curve – All Models")
     ax1.legend()
 
+    # ECE per bin
     ax2 = axes[1]
     bin_centers = (bins[:-1] + bins[1:]) / 2
     width = 0.25
@@ -225,9 +226,12 @@ def plot_calibration_summary(models_data, bins):
     fig.tight_layout()
     return fig
 
+# ---------------------------------------
+# 9. Confusion matrix at threshold
+# ---------------------------------------
 def plot_confusion_matrix_threshold(y_true, y_prob, threshold, title="Confusion Matrix"):
     """
-    Plot a confusion matrix at a given threshold.
+    Plot confusion matrix at a given threshold.
     """
     preds = (y_prob >= threshold).astype(int)
     cm = confusion_matrix(y_true, preds)
@@ -240,32 +244,42 @@ def plot_confusion_matrix_threshold(y_true, y_prob, threshold, title="Confusion 
         cmap="Blues",
         xticklabels=["Pred 0", "Pred 1"],
         yticklabels=["True 0", "True 1"],
-        ax=ax 
-    ) 
-    ax.set_title(f"{title} (thr={threshold:.4f})") 
-    ax.set_xlabel("Predicted") 
-    ax.set_ylabel("Actual") 
-    fig.tight_layout() 
-    
+        ax=ax
+    )
+
+    ax.set_title(f"{title} (thr={threshold:.4f})")
+    ax.set_xlabel("Predicted")
+    ax.set_ylabel("Actual")
+
+    fig.tight_layout()
     return fig
 
+# ---------------------------------------
+# 10. Metrics barplot
+# ---------------------------------------
 def plot_metrics_barplot(results_dict, title="Performance Metrics"):
     """
-    Plot sensitivity, specificity, PPV, NPV, F1 as a barplot.
+    Plot sensitivity, specificity, PPV, NPV and F1 as a barplot.
     """
     metrics = ["sensitivity", "specificity", "PPV", "NPV", "F1"]
     values = [results_dict[m] for m in metrics]
 
     fig, ax = plt.subplots(figsize=(8, 4))
-    sns.barplot(x=metrics, y=values, color="steelblue", ax=ax) 
-    ax.set_ylim(0, 1) 
-    ax.set_title(title) 
-    ax.set_ylabel("Score") 
-    fig.tight_layout() 
-    
+    sns.barplot(x=metrics, y=values, color="steelblue", ax=ax)
+    ax.set_ylim(0, 1)
+    ax.set_title(title)
+    ax.set_ylabel("Score")
+
+    fig.tight_layout()
     return fig
 
+# ---------------------------------------
+# 11. Permutation importance
+# ---------------------------------------
 def plot_permutation_importance(pi_df, title="Permutation Importance"):
+    """
+    Horizontal barplot for permutation importance.
+    """
     fig, ax = plt.subplots(figsize=(8, 6))
 
     ax.barh(
@@ -279,28 +293,17 @@ def plot_permutation_importance(pi_df, title="Permutation Importance"):
     ax.set_xlabel("Mean Importance (Δ ROC-AUC)")
     ax.set_ylabel("Feature")
     ax.set_title(title)
-    ax.invert_yaxis()  # Most important at the top
-    fig.tight_layout()
+    ax.invert_yaxis()
 
+    fig.tight_layout()
     return fig
 
+# ---------------------------------------
+# 12. Partial Dependence Plot (PDP)
+# ---------------------------------------
 def plot_pdp(grid, values, feature_name):
     """
     Generate Partial Dependence plot.
-
-    Parameters
-    ----------
-    grid : array-like
-        Feature grid values.
-    values : array-like
-        PDP values.
-    feature_name : str
-        Name of the feature.
-
-    Returns
-    -------
-    matplotlib.figure.Figure
-        PDP figure.
     """
     fig, ax = plt.subplots(figsize=(6, 4))
     ax.plot(grid, values)
@@ -310,6 +313,9 @@ def plot_pdp(grid, values, feature_name):
     fig.tight_layout()
     return fig
 
+# ---------------------------------------
+# 13. SHAP summary plot
+# ---------------------------------------
 def plot_shap_summary(shap_values, feature_names):
     """
     SHAP summary plot (global importance).
@@ -317,11 +323,13 @@ def plot_shap_summary(shap_values, feature_names):
     shap.summary_plot(shap_values, feature_names=feature_names, show=False)
     return plt.gcf()
 
+# ---------------------------------------
+# 14. SHAP dependence plot
+# ---------------------------------------
 def plot_shap_dependence(shap_values, X, pipeline, feature):
     """
-    SHAP dependence plot using the ORIGINAL feature name.
-    The function automatically maps the original feature name
-    to the transformed feature name inside the ColumnTransformer.
+    SHAP dependence plot using original feature name.
+    Automatically maps to transformed feature name.
     """
     preprocessor = pipeline.named_steps["prep"]
     feature_names = preprocessor.get_feature_names_out()
@@ -333,7 +341,6 @@ def plot_shap_dependence(shap_values, X, pipeline, feature):
         raise ValueError(f"Feature '{feature}' matches multiple transformed features: {matches}")
 
     transformed_feature = matches[0]
-
     idx = list(feature_names).index(transformed_feature)
 
     X_trans = preprocessor.transform(X)
@@ -349,24 +356,24 @@ def plot_shap_dependence(shap_values, X, pipeline, feature):
     plt.tight_layout()
     return plt.gcf()
 
+# ---------------------------------------
+# 15. SHAP interaction plot
+# ---------------------------------------
 def plot_shap_interaction_pair(interaction_values, X, pipeline, feature1, feature2):
     """
     SHAP interaction plot for two original feature names.
-    Automatically maps original names to the correct transformed numeric features.
+    Automatically maps to transformed numeric features.
     """
     preprocessor = pipeline.named_steps["prep"]
     feature_names = preprocessor.get_feature_names_out()
 
     def find_transformed(original_name):
         matches = [f for f in feature_names if original_name in f]
-
         if len(matches) == 0:
             raise ValueError(f"Feature '{original_name}' not found in transformed names.")
-
         numeric_matches = [f for f in matches if f.startswith("num__")]
         if len(numeric_matches) == 1:
             return numeric_matches[0]
-
         raise ValueError(
             f"Feature '{original_name}' matches multiple transformed names: {matches} "
             f"and no unique numeric feature was found."
